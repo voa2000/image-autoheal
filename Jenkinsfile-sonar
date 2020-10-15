@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+    environment {
+        SCANNER_HOME  = tool 'SONAR-SCANNER';
+        VERSION       = "${env.BUILD_NUMBER}";
+    }
+    options {
+        buildDiscarder(logRotator(
+            artifactDaysToKeepStr: '',
+            artifactNumToKeepStr: '5',
+            daysToKeepStr: '60',
+            numToKeepStr: '10')
+        )
+        disableConcurrentBuilds()
+        disableResume()
+        timeout(time: 15, unit: 'MINUTES')
+    }
+    stages {
+        stage('Sonar Analysis'){
+            steps {
+                // Send notification of Jenkins hosted scann starting to Default Slack Channel
+                // slackSend (channel: '#sonarcloud-scans', color:'#FFFFFF', message: "### ${env.JOB_NAME} ###\n Status: Scan starting (Branch: ${env.GIT_BRANCH}, Jenkins Job: ${env.BUILD_NUMBER})")
+                withSonarQubeEnv('Primetime SonarQube Server') 
+                {
+                    sh "${SCANNER_HOME}/bin/sonar-scanner -Dproject.settings=./sonar-project.properties -Dsonar.projectVersion=${VERSION}"
+                }
+            }
+        }
+        
+    }
+    post {
+           success {
+                // Send success notification of Jenkins hosted scann starting to Default Slack Channel
+                slackSend (channel: '#sonarcloud-scans',color:'#64c473', message: "### ${env.JOB_NAME} ###\n Status: Scan Completed (Branch: ${env.GIT_BRANCH}, Jenkins Job: ${env.BUILD_NUMBER})")
+           }
+           failure {
+                // Send failure notification of Jenkins hosted scann starting to Default Slack Channel
+                slackSend (channel: '#sonarcloud-scans',color:'#ff0000', message: "### ${env.JOB_NAME} ###\n Status: Scan Failed (Branch: ${env.GIT_BRANCH}, Jenkins Job: ${env.BUILD_NUMBER})")
+           }
+      }
+    }
